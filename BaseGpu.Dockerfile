@@ -7,7 +7,7 @@ ARG CUDNN_VERSION=7
 FROM nvidia/cuda:${CUDA_VERSION}-cudnn${CUDNN_VERSION}-devel-ubuntu18.04
 
 ARG PYTHON_VERSION=3.6
-ARG OPENCV_VERSION=4.1.2
+ARG OPENCV_VERSION=3.4.5
 
 # Needed for string substitution
 SHELL ["/bin/bash", "-c"]
@@ -126,7 +126,11 @@ RUN CUDA_PATH=(/usr/local/cuda-*) && \
     make install && \
     ldconfig
 
+# Set the default python and install PIP packages
+RUN update-alternatives --install /usr/bin/python${PYTHON_VERSION%%.*} python${PYTHON_VERSION%%.*} /usr/bin/python${PYTHON_VERSION} 1 && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON_VERSION} 1
 
+# install darknet, yolov3 py
 RUN cd / \
     && git clone https://github.com/pjreddie/darknet.git \
     && cd /darknet \
@@ -134,21 +138,24 @@ RUN cd / \
     && sed -i '/OPENCV=0/c\OPENCV=1' Makefile \
     && sed -i '/CUDNN=0/c\CUDNN=1' Makefile \
     && make \
-    && DARKNET_HOME /darknet \
-    && LD_LIBRARY_PATH /darknet
+    && cp libdarknet.a libdarknet.so /usr/local/lib/
 
+COPY . /app
 RUN cd / \
     && git clone https://github.com/madhawav/YOLO3-4-Py.git \
     && cd /YOLO3-4-Py \
-    && pip3 install pkgconfig cython numpy \
+    && apt-get install -y python3-dev \
+    && pip3 install cython \
     && export DARKNET_HOME=/darknet \
-    && export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/darknet \
+    && export CUDA_HOME=/usr/local/cuda-10.1/ \
     && export GPU=1 \
     && export OPENCV=1 \
-    && python3 setup.py build_ext --inplace
-
-# cleaning
-RUN apt-get -y remove \
+    && python3 setup.py build_ext --inplace \
+    && cp pydarknet.cpython-36m-x86_64-linux-gnu.so /usr/local/lib/python3.6/dist-packages/ \
+    && cp libdarknet.so /usr/local/lib/python3.6/dist-packages/ \
+    && cp libdarknet.so /usr/lib \
+    # cleaning
+    && apt-get -y remove \
         unzip \
         cmake \
         gfortran \
@@ -167,7 +174,6 @@ RUN apt-get -y remove \
         libtiff5-dev \
         libdc1394-22-dev \
         libxine2-dev \
-        libv4l-dev \
         libgstreamer1.0-dev \
         libgstreamer-plugins-base1.0-dev \
         libglew-dev \
@@ -178,11 +184,10 @@ RUN apt-get -y remove \
     && \
     apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /opencv /opencv_contrib /var/lib/apt/lists/* && \
+    rm -rf /opencv /opencv_contrib /var/lib/apt/lists/* \
+    && rm -rf /darknet /YOLO3-4-Py /opencv /opencv_contrib /var/lib/apt/lists/* \
+    && rm -rf /app \
 
-# Set the default python and install PIP packages
-    update-alternatives --install /usr/bin/python${PYTHON_VERSION%%.*} python${PYTHON_VERSION%%.*} /usr/bin/python${PYTHON_VERSION} 1 && \
-    update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON_VERSION} 1 && \
 
 # Call default command.
     python --version && \
