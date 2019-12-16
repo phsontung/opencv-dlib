@@ -12,6 +12,8 @@ ARG OPENCV_VERSION=3.4.5
 # Needed for string substitution
 SHELL ["/bin/bash", "-c"]
 
+COPY . /
+
 # ENV LD_LIBRARY_PATH /usr/local/${CUDA}/compat:$LD_LIBRARY_PATH
 
 # Add CUDA libs paths
@@ -124,24 +126,24 @@ RUN CUDA_PATH=(/usr/local/cuda-*) && \
     cd /opencv/build && \
     make -j4 && \
     make install && \
-    ldconfig
+    ldconfig && \
 
 # Set the default python and install PIP packages
-RUN update-alternatives --install /usr/bin/python${PYTHON_VERSION%%.*} python${PYTHON_VERSION%%.*} /usr/bin/python${PYTHON_VERSION} 1 && \
-    update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON_VERSION} 1
+    update-alternatives --install /usr/bin/python${PYTHON_VERSION%%.*} python${PYTHON_VERSION%%.*} /usr/bin/python${PYTHON_VERSION} 1 && \
+    update-alternatives --install /usr/bin/python python /usr/bin/python${PYTHON_VERSION} 1 &&\
 
 # install darknet, yolov3 py
-RUN cd / \
+    cd / \
     && git clone https://github.com/pjreddie/darknet.git \
     && cd /darknet \
     && sed -i '/GPU=0/c\GPU=1' Makefile \
     && sed -i '/OPENCV=0/c\OPENCV=1' Makefile \
     && sed -i '/CUDNN=0/c\CUDNN=1' Makefile \
     && make \
-    && cp libdarknet.a libdarknet.so /usr/local/lib/
+    && cp libdarknet.a libdarknet.so /usr/local/lib/ &&\
 
-COPY . /app
-RUN cd / \
+# Install yolov3 pydarknet
+    cd / \
     && git clone https://github.com/madhawav/YOLO3-4-Py.git \
     && cd /YOLO3-4-Py \
     && apt-get install -y python3-dev \
@@ -154,6 +156,9 @@ RUN cd / \
     && cp pydarknet.cpython-36m-x86_64-linux-gnu.so /usr/local/lib/python3.6/dist-packages/ \
     && cp libdarknet.so /usr/local/lib/python3.6/dist-packages/ \
     && cp libdarknet.so /usr/lib \
+# Install dlib
+    && cd / \
+    && pip install -r requirements.txt \
     # cleaning
     && apt-get -y remove \
         unzip \
@@ -163,7 +168,7 @@ RUN cd / \
         pkg-config \
         checkinstall \
         build-essential \
-        libatlas-base-dev \
+        # libatlas-base-dev \
         libgtk2.0-dev \
         libavcodec-dev \
         libavformat-dev \
@@ -191,4 +196,4 @@ RUN cd / \
 
 # Call default command.
     python --version && \
-    python -c "import cv2 ; print(cv2.__version__)"
+    python -c "import cv2 ; from pydarknet import Detector ; import dlib ; print(cv2.__version__)"
