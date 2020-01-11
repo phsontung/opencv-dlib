@@ -144,7 +144,7 @@ RUN CUDA_PATH=(/usr/local/cuda-*) && \
 
 # Install yolov3 pydarknet
     cd / \
-    && git clone https://github.com/madhawav/YOLO3-4-Py.git \
+    && git clone https://github.com/phsontung/YOLO3-4-Py.git \
     && cd /YOLO3-4-Py \
     && apt-get install -y python3-dev \
     && pip3 install cython \
